@@ -67,4 +67,5 @@ int main(int argc, char * argv[])
   
   //close connection
   close (clientFD);
+  close (sockfd);
 }
