@@ -15,6 +15,48 @@ int reportError(char* msg, int errorCode)
   exit(errorCode);
 }
 
+// n = size of buffer to look at
+char* parse_path(int* state, char* path_so_far, char* buffer, int n) {
+  int i;
+  int num = 0;
+  char* adds = NULL;
+  for (i = 0; i < n; i++) {
+    if (*state == 0 && buffer[i] != ' ') {
+      *state = 1;
+    }
+    else if (*state == 1 && buffer[i] == ' ') {
+      *state = 2;
+    }
+    else if (*state == 2 && buffer[i] != ' ') {
+      *state = 3;
+      // for ease
+      adds = (char*) calloc(n-i, sizeof(char));
+      adds[num] = buffer[i];
+      num++;
+    }
+    else if (*state == 3 && buffer[i] != ' ') {
+      if (adds == NULL) {
+        adds = (char*) calloc(n-i, sizeof(char));
+      }
+      adds[num] = buffer[i];
+      num++;
+    }
+    else if (*state == 3 && buffer[i] == ' ') {
+      *state = 4;
+      break;
+    }
+  }
+  if (adds != NULL) {
+    char* fin = (char*) malloc((strlen(path_so_far) + num + 1) * sizeof(char));
+    fin[0] = '\0';
+    fin = strcat(fin, path_so_far);
+    fin = strcat(fin, adds);
+    free(path_so_far);
+    return fin;
+  }
+  return path_so_far;
+}
+
 int main(int argc, char * argv[])
 {
   struct sockaddr_in serverA; //Address structure for server
@@ -53,15 +95,27 @@ int main(int argc, char * argv[])
 
   //read message
   if (debug) fprintf(stderr, "Message from client:\n");
-  char buffer[256]; int n;
+  char buffer[10]; int n;
+  int state = 0;
+  
+  char* full_path = (char*)malloc(sizeof(char) * 1);
+  full_path[0] = '\0';
+
   do
   {
-    memset(buffer, 0, 255);
-    n = read(clientFD, buffer, 255);  
-    printf("%s", buffer);
+    n = read(clientFD, buffer, 10);
+    if (n < 0) {
+      reportError("Read failed", 2);
+    }
+    if (n == 0) {
+      fprintf(stdout, "%s\n", "Read finished");
+      break;
+    }
+    full_path = parse_path(&state, full_path, buffer, n);
   }
-  while(n == 256);
+  while(state != 4);
 
+  fprintf(stdout, "%s\n", full_path);
   //write message
   n = write(clientFD, "response message", 30);
   
