@@ -57,6 +57,26 @@ char* parse_path(int* state, char* path_so_far, char* buffer, int n) {
   return path_so_far;
 }
 
+char* replace_spaces(char* full_path) {
+  int path_len = strlen(full_path);
+  char* fin = (char*)calloc(path_len + 1, sizeof(char));
+
+  int fin_ind = 0;
+  int i;
+  for(i = 0; i < path_len; i++) {
+    if (i + 2 < path_len && full_path[i]=='%' && full_path[i+1]=='2' && full_path[i+2]=='0'){
+      fin[fin_ind] = ' ';
+      fin_ind++;
+      i+=2;
+    } else {
+      fin[fin_ind] = full_path[i];
+      fin_ind++;
+    }
+  }
+  free(full_path);
+  return fin;
+}
+
 int main(int argc, char * argv[])
 {
   struct sockaddr_in serverA; //Address structure for server
@@ -115,6 +135,7 @@ int main(int argc, char * argv[])
   }
   while(state != 4);
 
+  full_path = replace_spaces(full_path);
   fprintf(stdout, "%s\n", full_path);
   //write message
   n = write(clientFD, "response message", 30);
