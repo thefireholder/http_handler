@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>  // signal name kill()
-#include <ctype.h>
-#include <fcntl.h>
 
 int debug = 0; //when on, prints more detail to stderr msg.
 
@@ -190,11 +188,6 @@ int main(int argc, char * argv[])
     // fflush(stdout);
     //write message
     //n = write(clientFD, "response message", 30);
-
-    //open file
-    for(int i = 0; full_path[i]; i++) full_path[i] = tolower(full_path[i]);
-    int fd = open(full_path+1,O_RDONLY);
-
     
     free(full_path);
     //close connection
