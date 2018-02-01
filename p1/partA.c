@@ -77,6 +77,37 @@ char* replace_spaces(char* full_path) {
   return fin;
 }
 
+void print_request(char* buffer, int* end_state) {
+  int i;
+  int buf_len = strlen(buffer);
+  int end_index = -1;
+  for(i = 0; i < buf_len; i++) {
+    // \r\n\r\n
+    if(*end_state==0 || *end_state==2) {
+      if(buffer[i]=='\r')
+        (*end_state)++;
+      else
+        *end_state = 0;
+    }
+    else if (*end_state==1 || *end_state==3){
+      if(buffer[i]=='\n')
+        (*end_state)++;
+      else
+        end_state = 0;
+    }
+    if(*end_state==4){
+      end_index=i+1;
+      break;
+    }
+  }
+  if (end_index==-1){
+    fprintf(stdout, "%s", buffer);
+  } else {
+    buffer[end_index]='\0';
+    fprintf(stdout, "%s", buffer);
+  }
+}
+
 int main(int argc, char * argv[])
 {
   struct sockaddr_in serverA; //Address structure for server
@@ -121,6 +152,7 @@ int main(int argc, char * argv[])
   char* full_path = (char*)malloc(sizeof(char) * 1);
   full_path[0] = '\0';
 
+  int print_state = 0;
   do
   {
     n = read(clientFD, buffer, 10);
@@ -131,16 +163,20 @@ int main(int argc, char * argv[])
       fprintf(stdout, "%s\n", "Read finished");
       break;
     }
-    full_path = parse_path(&state, full_path, buffer, n);
+    print_request(buffer, &print_state);
+    if (state < 4) {
+      full_path = parse_path(&state, full_path, buffer, n);
+    }
   }
-  while(state != 4);
+  while(print_state!=4);
 
   full_path = replace_spaces(full_path);
-  fprintf(stdout, "%s\n", full_path);
+  fprintf(stdout, "This is is the path (not part of request): %s\n", full_path);
   //write message
   n = write(clientFD, "response message", 30);
   
   //close connection
   close (clientFD);
   close (sockfd);
+  // ^^ this should be in loop
 }
