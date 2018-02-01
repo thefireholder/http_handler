@@ -8,6 +8,8 @@
 #include <signal.h>  // signal name kill()
 
 int debug = 0; //when on, prints more detail to stderr msg.
+int REQUEST_LEN = 1000;
+int RESPONSE_LEN = 1000;
 
 int reportError(char* msg, int errorCode)
 {
@@ -15,16 +17,31 @@ int reportError(char* msg, int errorCode)
   exit(errorCode);
 }
 
-char* response(int fd, int fileType)
+char* createResponse(int fd, int fileType)
 //return response 
 //response contains header, file content from fd
 //fileType: html, htm, jpg, jpeg, gif
 {
-  char* res = "abcdef"; //calloc(100,1);
+  char* response = malloc(RESPONSE_LEN);
+  char header[12][100]; //magic number
+  strcpy(header[0],"HTTP/1.1 200 OK\r\n");
+  strcpy(header[1],"Date: Sun, 18 Oct 2009 08:56:53 GMT\r\n");
+  strcpy(header[2],"Server: Apache/2.2.14 (Win32)\r\n");
+  strcpy(header[3],"Last-Modified: Sat, 20 Nov 2004 07:16:26 GMT\r\n");
+  strcpy(header[4],"ETag: \"10000000565a5-2c-3e94b66c2e680\"\r\n");
+  strcpy(header[5],"Accept-Ranges: bytes\r\n");
+  strcpy(header[6],"Content-Length: 44\r\n");
+  strcpy(header[7],"Connection: close\r\n");
+  strcpy(header[8],"Content-Type: text/html\r\n");
+  strcpy(header[9],"X-Pad: avoid browser bug;\r\n\r\n");
+  strcpy(header[10],"<html><body><h1>It works!!</h1></body></html>");
   
-  //  response = header;
+  sprintf(response,"%s%s%s%s%s%s%s%s%s%s%s",
+	    header[0],header[1],header[2],header[3],header[4],
+	    header[5],header[6],header[7],header[8],header[9],
+	  header[10]);
 
-  return res;
+  return response;
 }
 
 
@@ -64,26 +81,19 @@ int main(int argc, char * argv[])
 	    ,ntohs(((struct sockaddr_in)clientA).sin_port));
   }
 
-  //read
-  char request[1280];
-  memset(request,0,1280);
-  int z = read(clientFD, request, 1279);
+  //buffered read request
+  char request[REQUEST_LEN];
+  memset(request,0,REQUEST_LEN);
+  int z = read(clientFD, request, REQUEST_LEN-1);
+  if (debug) fprintf(stderr, "\nREQUEST MSG:\n");
   fprintf(stdout, "%s", request);
 
-
-
-  //response
-  char* res;
-  int fd = 4; //file descriptor
+  //simple http response (header + body)
+  int fd = 4; //assume file descriptor
   int ft = 3; //file type
-  int x = response(res, fd, ft);
-  int n = write(clientFD, res, x);
-  n = write(1, res, x);
-  fprintf(stderr, "hwerw%s%d\n",res,x);
-
-  //write message
-  n = write(clientFD, "response message", 30);
-
+  char* response = createResponse(fd, ft);
+  int n = write(clientFD, response, strlen(response));
+  if (debug) fprintf(stderr, "RESPONSE MSG:\n%s\n", response);
   
   //close connection
   close (clientFD);
