@@ -271,7 +271,7 @@ int main(int argc, char * argv[])
     if (fd==NULL) {
       //reportError("Read file failed", 2);
       status = 404;
-      print_header(clientFD, status, type, 39); // , 39, );
+      print_header(clientFD, status, HTML, 39); // , 39, );
       //body
       int n = write(clientFD, "<html><body><h1>404!</h1></body></html>", 39);
     } else {
