@@ -20,10 +20,11 @@ char* response(int fd, int fileType)
 //response contains header, file content from fd
 //fileType: html, htm, jpg, jpeg, gif
 {
-  response = "abcdef"; //calloc(100,1);
+  char* res = "abcdef"; //calloc(100,1);
+  
   //  response = header;
 
-  return strlen(response);
+  return res;
 }
 
 
