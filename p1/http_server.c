@@ -265,10 +265,10 @@ int main(int argc, char * argv[])
         type = BINARY;
     }
 
-    //int fd = open(full_path+1,O_RDONLY);
-    FILE* fd = fopen(full_path + 1, "rb");
+    int fd = open(full_path+1,O_RDONLY);
+    //FILE* fd = fopen(full_path + 1, "rb");
     int status = 200;
-    if (fd==NULL) {
+    if (fd==-1) {
       //reportError("Read file failed", 2);
       status = 404;
       print_header(clientFD, status, HTML, 39); // , 39, );
@@ -285,12 +285,12 @@ int main(int argc, char * argv[])
       print_header(clientFD, status, type, f_size);
       //body
       char* whole_file = (char*) malloc(f_size + 1);
-      fread(whole_file, sizeof(char), f_size, fd);
-      fclose(fd);
-      whole_file[f_size] = '\0';
+      // TODO: do more retries
+      int num_read = read(fd, whole_file, f_size);
+      close(fd);
 
-      int n = write(clientFD, whole_file, f_size);
-
+      int n = write(clientFD, whole_file, num_read);
+      free(whole_file);
     }
     
     free(full_path);
