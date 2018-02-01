@@ -178,7 +178,7 @@ int main(int argc, char * argv[])
   struct sockaddr_in serverA; //Address structure for server
       
   //store port number
-  if (argc < 2) reportError("argument failure: ./server portNumber", 1);
+  if (argc < 2) reportError("argument failure: ./http_server portNumber", 1);
   if (argc > 2) debug = 1;
   if (debug) fprintf(stderr, "Server Port: %d\n", atoi(argv[1]));
     
@@ -285,11 +285,11 @@ int main(int argc, char * argv[])
       print_header(clientFD, status, type, f_size);
       //body
       char* whole_file = (char*) malloc(f_size + 1);
-      fread(whole_file, f_size, 1, fd);
+      fread(whole_file, sizeof(char), f_size, fd);
       fclose(fd);
       whole_file[f_size] = '\0';
 
-      int n = write(clientFD, whole_file, strlen(whole_file));
+      int n = write(clientFD, whole_file, f_size);
 
     }
     
