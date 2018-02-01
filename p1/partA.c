@@ -77,11 +77,10 @@ char* replace_spaces(char* full_path) {
   return fin;
 }
 
-void print_request(char* buffer, int* end_state) {
+void print_request(char* buffer, int* end_state, int n) {
   int i;
-  int buf_len = strlen(buffer);
   int end_index = -1;
-  for(i = 0; i < buf_len; i++) {
+  for(i = 0; i < n; i++) {
     // \r\n\r\n
     if(*end_state==0 || *end_state==2) {
       if(buffer[i]=='\r')
@@ -96,16 +95,22 @@ void print_request(char* buffer, int* end_state) {
         end_state = 0;
     }
     if(*end_state==4){
-      end_index=i+1;
+      end_index=i;
       break;
     }
   }
   if (end_index==-1){
+    char c = buffer[n-1];
+    buffer[n-1] = '\0';
     fprintf(stdout, "%s", buffer);
+    fprintf(stdout, "%c", c);
   } else {
     buffer[end_index]='\0';
     fprintf(stdout, "%s", buffer);
+    //remaining \n
+    fprintf(stdout, "\n");
   }
+  // fflush(stdout);
 }
 
 int main(int argc, char * argv[])
@@ -130,53 +135,64 @@ int main(int argc, char * argv[])
 
   //listen for connection
   if (debug) fprintf(stderr, "Socket defined. now listening for client...\n");
-  listen(sockfd, 3); // 3 simultaneous connections to this socket
+  listen(sockfd, 5); // 5 simultaneous connections to this socket
 
-  //accept client's address
-  struct sockaddr_in clientA; int clientA_len; //Address structure for client
-  int clientFD = accept(sockfd, (struct sockaddr *) &clientA, (socklen_t *) &clientA_len);
-  if (clientFD < 0) reportError("accept failed. didn't find client FD",2);
+  while(1) {
+    //accept client's address
+    struct sockaddr_in clientA; int clientA_len; //Address structure for client
+    int clientFD = accept(sockfd, (struct sockaddr *) &clientA, (socklen_t *) &clientA_len);
+    if (clientFD < 0) reportError("accept failed. didn't find client FD",2);
 
-  if (debug) { //getting client ip & port (fails: always prints 0.0.0.0:0)
-    unsigned char *ip = (unsigned char *)&(clientA.sin_addr.s_addr); 
-    fprintf(stderr, "Found client %d.%d.%d.%d:%d\n"
-	    ,clientA.sin_addr.s_addr, ip[1], ip[2], ip[3]
-	    ,ntohs(((struct sockaddr_in)clientA).sin_port));
+    if (debug) { //getting client ip & port (fails: always prints 0.0.0.0:0)
+      unsigned char *ip = (unsigned char *)&(clientA.sin_addr.s_addr); 
+      fprintf(stderr, "Found client %d.%d.%d.%d:%d\n"
+  	    ,clientA.sin_addr.s_addr, ip[1], ip[2], ip[3]
+  	    ,ntohs(((struct sockaddr_in)clientA).sin_port));
+    }
+
+    //read message
+    if (debug) fprintf(stderr, "Message from client:\n");
+    char buffer[10]; int n;
+    char buffer2[10];
+    int state = 0;
+    
+    char* full_path = (char*)malloc(sizeof(char) * 1);
+    full_path[0] = '\0';
+
+    int print_state = 0;
+    do
+    {
+      n = read(clientFD, buffer, 10);
+      
+      int x;
+      for(x=0;x<n;x++){
+        buffer2[x]=buffer[x];
+      }
+
+      if (n < 0) {
+        reportError("Read failed", 2);
+      }
+      if (n == 0) {
+        // fprintf(stdout, "%s\n", "Read finished");
+        break;
+      }
+      print_request(buffer, &print_state, n);
+      if (state < 4) {
+        full_path = parse_path(&state, full_path, buffer2, n);
+      }
+    }
+    while(print_state!=4);
+
+    full_path = replace_spaces(full_path);
+    fprintf(stdout, "This is the path (not part of request): %s\n\n\n\n", full_path);
+    // fflush(stdout);
+    //write message
+    //n = write(clientFD, "response message", 30);
+    
+    free(full_path);
+    //close connection
+    close (clientFD);
   }
-
-  //read message
-  if (debug) fprintf(stderr, "Message from client:\n");
-  char buffer[10]; int n;
-  int state = 0;
-  
-  char* full_path = (char*)malloc(sizeof(char) * 1);
-  full_path[0] = '\0';
-
-  int print_state = 0;
-  do
-  {
-    n = read(clientFD, buffer, 10);
-    if (n < 0) {
-      reportError("Read failed", 2);
-    }
-    if (n == 0) {
-      fprintf(stdout, "%s\n", "Read finished");
-      break;
-    }
-    print_request(buffer, &print_state);
-    if (state < 4) {
-      full_path = parse_path(&state, full_path, buffer, n);
-    }
-  }
-  while(print_state!=4);
-
-  full_path = replace_spaces(full_path);
-  fprintf(stdout, "This is is the path (not part of request): %s\n", full_path);
-  //write message
-  n = write(clientFD, "response message", 30);
-  
-  //close connection
-  close (clientFD);
   close (sockfd);
   // ^^ this should be in loop
 }
