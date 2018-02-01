@@ -8,6 +8,12 @@
 #include <signal.h>  // signal name kill()
 #include <ctype.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+
+#define BINARY 0
+#define HTML 1
+#define JPEG 2
+#define GIF 3
 
 int debug = 0; //when on, prints more detail to stderr msg.
 
@@ -115,6 +121,58 @@ void print_request(char* buffer, int* end_state, int n) {
   // fflush(stdout);
 }
 
+void print_header(int clientFD, int status, int type, int f_size) {
+  char dest[1000];
+  dest[0]='\0';
+
+  char line[200];
+  char* phrase = "OK";
+  if(status == 404)
+    phrase = "Bad Request";
+  int spr = sprintf(line, "HTTP/1.1 %d %s\r\n", status, phrase);
+  if(spr<0)
+    reportError("sprintf failed", 2);
+  strcat(dest, line);
+
+  strcat(dest, "Connection: close\r\n");
+  //skipping date
+  strcat(dest, "Server: bab server\r\n");
+  //skipping last-modified
+  spr = sprintf(line, "Content-Length: %d\r\n", f_size);
+  strcat(dest, line);
+
+  char* contenttype = "";
+  switch(type) {
+    case BINARY: contenttype = "application/octet-stream"; break;
+    case HTML: contenttype = "text/html"; break;
+    case JPEG: contenttype = "image/jpeg"; break;
+    case GIF: contenttype = "image/gif"; break;
+  }
+  spr = sprintf(line, "Content-Type: %s\r\n", contenttype);
+  strcat(dest, line);
+
+  strcat(dest, "\r\n");
+  // print header
+  //fprintf(stdout, "%s\n", dest);
+  int n = write(clientFD, dest, strlen(dest));
+  //fprintf(stdout, "printed %d\n", n);
+
+  //char* body = thebody; // "<html><body>It works!</body></html>\r\n";
+  //fprintf(stdout, "%s\n", body);
+  //n = write(clientFD, body, strlen(body));
+  //fprintf(stdout, "printed2 %d\n", n);
+  
+}
+
+int file_size(char* path) {
+  struct stat buffer;
+  int status = stat(path, &buffer);
+  if (status==0){
+    return buffer.st_size;
+  }
+  return -1;
+}
+
 int main(int argc, char * argv[])
 {
   struct sockaddr_in serverA; //Address structure for server
@@ -192,9 +250,48 @@ int main(int argc, char * argv[])
     //n = write(clientFD, "response message", 30);
 
     //open file
-    for(int i = 0; full_path[i]; i++) full_path[i] = tolower(full_path[i]);
-    int fd = open(full_path+1,O_RDONLY);
+    int type = BINARY;
+    char* dot = strchr(full_path, '.');
+    if (dot!=NULL) {
+      for(char* x = dot + 1; *x != '\0'; x++)
+        *x = tolower(*x);
+      if(strcmp(dot+1, "html")==0||strcmp(dot+1, "htm")==0)
+        type = HTML;
+      else if(strcmp(dot+1, "jpg")==0||strcmp(dot+1, "jpeg")==0)
+        type = JPEG;
+      else if(strcmp(dot+1, "gif")==0)
+        type = GIF;
+      else
+        type = BINARY;
+    }
 
+    //int fd = open(full_path+1,O_RDONLY);
+    FILE* fd = fopen(full_path + 1, "rb");
+    int status = 200;
+    if (fd==NULL) {
+      //reportError("Read file failed", 2);
+      status = 404;
+      print_header(clientFD, status, type, 39); // , 39, );
+      //body
+      int n = write(clientFD, "<html><body><h1>404!</h1></body></html>", 39);
+    } else {
+      // file size
+      int f_size = file_size(full_path + 1);
+      if(f_size == -1) {
+        reportError("negative file size", 2);
+      }
+
+      //header
+      print_header(clientFD, status, type, f_size);
+      //body
+      char* whole_file = (char*) malloc(f_size + 1);
+      fread(whole_file, f_size, 1, fd);
+      fclose(fd);
+      whole_file[f_size] = '\0';
+
+      int n = write(clientFD, whole_file, strlen(whole_file));
+
+    }
     
     free(full_path);
     //close connection
