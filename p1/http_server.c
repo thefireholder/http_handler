@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #define BINARY 0
 #define HTML 1
@@ -121,6 +122,22 @@ void print_request(char* buffer, int* end_state, int n) {
   // fflush(stdout);
 }
 
+ssize_t write_with_retry(int fd, const char* buf, size_t size)
+{
+    ssize_t ret;
+    while (size > 0) {
+        do
+        {
+          ret = write(fd, buf, size);
+        } while ((ret < 0) && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK));
+        if (ret < 0)
+            return ret;
+        size -= ret;
+        buf += ret;
+    }
+    return 0;
+}
+
 void print_header(int clientFD, int status, int type, int f_size) {
   char dest[1000];
   dest[0]='\0';
@@ -153,8 +170,8 @@ void print_header(int clientFD, int status, int type, int f_size) {
 
   strcat(dest, "\r\n");
   // print header
-  int n = write(clientFD, dest, strlen(dest));
-  
+  //int n = write(clientFD, dest, strlen(dest));
+  int n = write_with_retry(clientFD, dest, strlen(dest));
 }
 
 int file_size(char* path) {
@@ -264,7 +281,8 @@ int main(int argc, char * argv[])
       status = 404;
       print_header(clientFD, status, HTML, 39); // , 39, );
       //body
-      int n = write(clientFD, "<html><body><h1>404!</h1></body></html>", 39);
+      //int n = write(clientFD, "<html><body><h1>404!</h1></body></html>", 39);
+      int n = write_with_retry(clientFD, "<html><body><h1>404!</h1></body></html>", 39);
     } else {
       // file size
       int f_size = file_size(full_path + 1);
@@ -280,7 +298,8 @@ int main(int argc, char * argv[])
       int num_read = read(fd, whole_file, f_size);
       close(fd);
 
-      int n = write(clientFD, whole_file, num_read);
+      //int n = write(clientFD, whole_file, num_read);
+      int n = write_with_retry(clientFD, whole_file, num_read);
       free(whole_file);
     }
     
