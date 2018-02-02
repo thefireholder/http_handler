@@ -153,14 +153,7 @@ void print_header(int clientFD, int status, int type, int f_size) {
 
   strcat(dest, "\r\n");
   // print header
-  //fprintf(stdout, "%s\n", dest);
   int n = write(clientFD, dest, strlen(dest));
-  //fprintf(stdout, "printed %d\n", n);
-
-  //char* body = thebody; // "<html><body>It works!</body></html>\r\n";
-  //fprintf(stdout, "%s\n", body);
-  //n = write(clientFD, body, strlen(body));
-  //fprintf(stdout, "printed2 %d\n", n);
   
 }
 
@@ -233,7 +226,6 @@ int main(int argc, char * argv[])
         reportError("Read failed", 2);
       }
       if (n == 0) {
-        // fprintf(stdout, "%s\n", "Read finished");
         break;
       }
       print_request(buffer, &print_state, n);
@@ -244,7 +236,6 @@ int main(int argc, char * argv[])
     while(print_state!=4);
 
     full_path = replace_spaces(full_path);
-    fprintf(stdout, "This is the path (not part of request): %s\n\n\n\n", full_path);
     // fflush(stdout);
     //write message
     //n = write(clientFD, "response message", 30);
