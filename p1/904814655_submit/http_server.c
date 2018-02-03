@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <dirent.h>
 
 #define BINARY 0
 #define HTML 1
@@ -183,6 +184,20 @@ int file_size(char* path) {
   return -1;
 }
 
+char* lower_extension(char* full_path) {
+  char* lower = (char*) calloc(strlen(full_path) + 1, sizeof(char));
+  int i;
+  for(i=0; i<strlen(full_path); i++) {
+    lower[i] = full_path[i];
+  }
+  char* dot = strchr(lower, '.');
+  if(dot!=NULL) {
+    for(char* x = dot + 1; *x != '\0'; x++)
+      *x = tolower(*x);
+  }
+  return lower;
+}
+
 int main(int argc, char * argv[])
 {
   struct sockaddr_in serverA; //Address structure for server
@@ -273,8 +288,33 @@ int main(int argc, char * argv[])
         type = BINARY;
     }
 
-    int fd = open(full_path+1,O_RDONLY);
+    // int fd = open(full_path+1,O_RDONLY);
     //FILE* fd = fopen(full_path + 1, "rb");
+
+    int fd = -1;
+    if(strchr(full_path, '.') == NULL) {
+      fd = open(full_path+1, O_RDONLY);
+    } else {
+      DIR* dir;
+      struct dirent* ent;
+      if ((dir = opendir(".")) != NULL) {
+        while((ent = readdir(dir)) != NULL) {
+          char* name = lower_extension(ent->d_name);
+          if(strcmp(name, full_path+1) == 0){
+            int ind;
+            for(ind = 0; ind < strlen(ent->d_name); ind++)
+              full_path[ind+1]=(ent->d_name)[ind];
+            fd = open(ent->d_name, O_RDONLY);
+            free(name);
+            break;
+          } else {
+            free(name);
+          }
+        }
+      }
+    }
+    
+
     int status = 200;
     if (fd==-1) {
       //reportError("Read file failed", 2);
