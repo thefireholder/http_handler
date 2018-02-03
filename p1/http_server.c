@@ -301,7 +301,7 @@ int main(int argc, char * argv[])
         while((ent = readdir(dir)) != NULL) {
           char* name = lower_extension(ent->d_name);
           if(strcmp(name, full_path+1) == 0){
-            fd = open(full_path+1, O_RDONLY);
+            fd = open(ent->d_name, O_RDONLY);
             free(name);
             break;
           } else {
