@@ -301,6 +301,9 @@ int main(int argc, char * argv[])
         while((ent = readdir(dir)) != NULL) {
           char* name = lower_extension(ent->d_name);
           if(strcmp(name, full_path+1) == 0){
+            int ind;
+            for(ind = 0; ind < strlen(ent->d_name); ind++)
+              full_path[ind]=(ent->d_name)[ind];
             fd = open(ent->d_name, O_RDONLY);
             free(name);
             break;
